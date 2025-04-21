@@ -20,7 +20,8 @@
 #define BTN_A 5                     // Pino do botão A conectado ao GPIO 5.
 #define BTN_B 6                     // Pino do botão B conectado ao GPIO 6.
 #define BTN_STICK 22                // Pino do botão do Joystick conectado ao GPIO 22.
-#define JOYSTICK 26               
+#define EIXO_X 26                   // Eixo X do JoyStick ADC 0
+#define EIXO_Y 27                   // Eixo Y do JoyStick ADC 1            
 
 #define DEBOUNCE_TIME 200000        // Tempo para debounce em 200 ms 
 static uint32_t last_time_A = 0;    // Tempo da última interrupção do botão A
@@ -39,11 +40,17 @@ int potencia = 0;
 ssd1306_t ssd;
 PIO pio = pio0;
 uint sm = 0;
+bool cor = true;
+
+int pulso_x;
+int pulso_y;
+uint16_t adc_value_x;
+uint16_t adc_value_y; 
 
 // --- DECLARAÇÃO DE FUNÇÕES
 
-void write_display(ssd1306_t *ssd);
 void irq_buttons(uint gpio, uint32_t events);
+void converte_joystic(int input);
 void beep_buzzer();
 void buzzer_tone(int frequency);
 void buzzer_off();
@@ -68,19 +75,46 @@ int main() {
 
     set_led_matrix(17, pio, sm);
 
+    int x = 63, y = 31; // Valor central do ssd1306
+
     while (1) {
-        adc_select_input(0); // ADC0
-        uint16_t raw = adc_read();
-        potencia = (raw * 100) / 4095; // Escala para 0–100%
+        converte_joystic(0);
+        converte_joystic(1); 
         
-        write_display(&ssd);
+        ssd1306_fill(&ssd, !cor); // Limpa o display
+
+        // Eixo X
+        if(adc_value_y == 2048){ // Se estiver no meio 
+            x = 63;
+        }
+        else if (adc_value_y > 2048){ // Se aumentar os valores
+            x = ((adc_value_y - 2048) / 32) + 54;
+        }
+        else{ // Se diminuir os valores
+            x = (((adc_value_y - 2048)) / 32) + 67;
+        }
         
+        // Eixo Y
+        if(adc_value_x == 2048)
+            y = 31;
+        else if(adc_value_x > 2048){
+            y =  67 - (adc_value_x / 64);
+            // y =  ((adc_value_x - 2048) / 64) + 24; PARA VALOR INVERTIDO
+        }
+        else{
+            y = 54 - ((adc_value_x) / 64);
+            // y =  ((adc_value_x - 2048) / 64) + 35; //PARA VALOR INVERTIDO
+        }
+        
+        ssd1306_rect(&ssd, y, x, 8, 8, cor, cor); // Desenha um retângulo        
+        ssd1306_send_data(&ssd); // Atualiza o display
+    
         printf("------------------------------------\n");
         printf("Motor: %s\n", state ? "ON" : "OFF");
         printf("Potencia: %d %\n", potencia);
         printf("Alerta: %s\n", alert ? "ON" : "OFF");
         
-        sleep_ms(1000);
+        sleep_ms(100);
     }
 }
 
@@ -122,28 +156,31 @@ void irq_buttons(uint gpio, uint32_t events){
 
 
 /**
- * @brief Atualiza o display com o estado dos LEDs.
- *
- * @param ssd Ponteiro para a estrutura do display.
+ * @brief Função para ler os valores dos eixos do joystick (X e Y) e e converter valores negativos.
+ * 
+ * @param input entrada.
  */
-void write_display(ssd1306_t *ssd) {
-    // Limpa o display
-    ssd1306_fill(ssd, false);
-
-    char msg_motor[20];  // Buffer para armazenar a string formatada
-    sprintf(msg_motor, "Motor %s", state ? "ON" : "OFF");
-    ssd1306_draw_string(ssd, msg_motor, 0, 0);
-
-    char msg_pot[20];  // Buffer para armazenar a string formatada
-    sprintf(msg_pot, "Potencia %d", potencia);
-    ssd1306_draw_string(ssd, msg_pot, 0, 15);
-
-    char msg_alert[20];  // Buffer para armazenar a string formatada
-    sprintf(msg_alert, "Emergencia %s", alert ? "ON" : "OFF");
-    ssd1306_draw_string(ssd, msg_alert, 0, 30);
-
-    // Atualiza o display
-    ssd1306_send_data(ssd); 
+void converte_joystic (int input) { 
+    // Seleciona 0 ou 1
+    adc_select_input(input);
+    sleep_us(2);
+    if(input == 0){
+        adc_value_x = adc_read(); 
+        pulso_x = ((adc_value_x -2048)*255)/2048;
+        if (pulso_x < 0){
+            pulso_x = pulso_x *(-1);
+        }
+    }
+    else if (input == 1){        
+        adc_value_y = adc_read();
+        pulso_y = ((adc_value_y -2048)*255)/2048;
+        if (pulso_y < 0){
+            pulso_y = pulso_y *(-1);
+        }
+    }
+    else{
+        printf("Valor Invalido!\n");
+    }
 }
 
 
@@ -201,9 +238,10 @@ void setup() {
     // Configura display
     setup_display();
 
-    // Configura ADC
+    // Configura ADC para os eixos do joystick
     adc_init();
-    adc_gpio_init(JOYSTICK);
+    adc_gpio_init(EIXO_X);
+    adc_gpio_init(EIXO_Y);
 }
 
 
