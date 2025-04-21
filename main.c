@@ -79,7 +79,11 @@ int main() {
 
     while (1) {
         converte_joystic(0);
-        converte_joystic(1); 
+        converte_joystic(1);
+        
+        adc_select_input(0);
+        uint16_t raw = adc_read();
+        potencia = (raw * 100) / 4095; // Escala para 0–100%
         
         ssd1306_fill(&ssd, !cor); // Limpa o display
 
@@ -99,17 +103,16 @@ int main() {
             y = 31;
         else if(adc_value_x > 2048){
             y =  67 - (adc_value_x / 64);
-            // y =  ((adc_value_x - 2048) / 64) + 24; PARA VALOR INVERTIDO
         }
         else{
             y = 54 - ((adc_value_x) / 64);
-            // y =  ((adc_value_x - 2048) / 64) + 35; //PARA VALOR INVERTIDO
         }
         
         ssd1306_rect(&ssd, y, x, 8, 8, cor, cor); // Desenha um retângulo        
         ssd1306_send_data(&ssd); // Atualiza o display
     
         printf("------------------------------------\n");
+        printf("Painel de controle da Nave XS9000\n");
         printf("Motor: %s\n", state ? "ON" : "OFF");
         printf("Potencia: %d %\n", potencia);
         printf("Alerta: %s\n", alert ? "ON" : "OFF");
