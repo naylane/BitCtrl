@@ -1,4 +1,0 @@
-[wokwi]
-version = 1
-firmware = 'build/adc-control.uf2'
-elf = 'build/adc-control.elf'
