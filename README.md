@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./docs/logo.png" alt="Logo Embarcatech" height="100">
+    <img src="./imagens\logo.png" alt="Logo Embarcatech" height="90">
 </div>
 
 <h2 align="center"> BitCrtl </h3>
